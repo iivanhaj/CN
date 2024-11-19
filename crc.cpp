@@ -1,69 +1,62 @@
 #include <iostream>
+#include <bitset>
 #include <string>
 using namespace std;
 
-// Function to perform XOR operation
-void xorOperation(string &dividend, const string &divisor, int size) {
-    for (int i = 0; i < size; i++) {
-        dividend[i] = (dividend[i] == divisor[i]) ? '0' : '1';
+string xorOperation(string a, string b) {
+    string result = "";
+    for (int i = 0; i < b.length(); i++) {
+        result += (a[i] == b[i]) ? '0' : '1';
     }
+    return result;
 }
 
-// Function to calculate the CRC remainder
-string calculateCRC(string data, const string &divisor) {
-    int dataSize = data.length(), divisorSize = divisor.length();
-    string temp = data.substr(0, divisorSize);
-
-    for (int i = divisorSize; i <= dataSize; i++) {
-        if (temp[0] == '1') {
-            xorOperation(temp, divisor, divisorSize);
-        }
-        temp.erase(0, 1); // Drop the first bit
-        if (i < dataSize) {
-            temp.push_back(data[i]); // Append the next bit from data
+string crcEncode(string data, string genPoly) {
+    int dataLen = data.length();
+    int genLen = genPoly.length();
+    string augmentedData = data + string(genLen - 1, '0');
+    
+    for (int i = 0; i < dataLen; i++) {
+        if (augmentedData[i] == '1') {
+            string temp = augmentedData.substr(i, genLen);
+            augmentedData.replace(i, genLen, xorOperation(temp, genPoly));
         }
     }
-    return temp.substr(1); // Return remainder (excluding the leading bit)
+    return augmentedData.substr(dataLen);  // Return the remainder (CRC code)
+}
+
+bool verifyCRC(string data, string genPoly, string receivedCRC) {
+    int dataLen = data.length();
+    int genLen = genPoly.length();
+    string augmentedData = data + receivedCRC;
+    
+    for (int i = 0; i < dataLen; i++) {
+        if (augmentedData[i] == '1') {
+            string temp = augmentedData.substr(i, genLen);
+            augmentedData.replace(i, genLen, xorOperation(temp, genPoly));
+        }
+    }
+    return augmentedData.find('1') == string::npos;  // No remainder means no error
 }
 
 int main() {
-    // Input data bits
-    int dataSize;
-    cout << "Enter the size of the data array: ";
-    cin >> dataSize;
-    string data;
-    cout << "Enter data bits: ";
-    cin >> data;
+    string data = "111101111";  // Given data
+    string genPoly = "11011";   // Given generator polynomial
 
-    // Input divisor bits
-    int divisorSize;
-    cout << "Enter the size of the divisor array: ";
-    cin >> divisorSize;
-    string divisor;
-    cout << "Enter divisor bits: ";
-    cin >> divisor;
+    string crc = crcEncode(data, genPoly);
+    cout << "CRC Code: " << crc << endl;
 
-    // Append zeros to the data
-    string paddedData = data + string(divisorSize - 1, '0');
+    // Simulate transmission with CRC appended to the data
+    string transmittedData = data + crc;
+    
+    cout << "Transmitted Data: " << transmittedData << endl;
 
-    // Calculate CRC remainder and generated code
-    string remainder = calculateCRC(paddedData, divisor);
-    string crcCode = data + remainder;
-
-    // Output results
-    cout << "CRC Remainder: " << remainder << endl;
-    cout << "Generated CRC code is: " << crcCode << endl;
-
-    // Error detection
-    cout << "Case1:\nEnter bits in the array which you want to send: ";
-    string receivedData;
-    cin >> receivedData;
-
-    string receivedRemainder = calculateCRC(receivedData, divisor);
-    if (receivedRemainder.find('1') != string::npos)
-        cout << "Data received with error.\n";
-    else
-        cout << "Data received without any error.\n";
+    // Verify received data
+    if (verifyCRC(transmittedData.substr(0, data.length()), genPoly, transmittedData.substr(data.length()))) {
+        cout << "Data is correct (no error detected)." << endl;
+    } else {
+        cout << "Error detected in received data!" << endl;
+    }
 
     return 0;
 }

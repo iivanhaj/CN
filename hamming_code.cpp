@@ -3,103 +3,65 @@
 #include <cmath>
 using namespace std;
 
-int calculateParity(vector<int>& hammingCode, int position, int length) {
-    int parity = 0;
-    for (int i = position; i <= length; i += 2 * position) {
-        for (int j = i; j < i + position && j <= length; j++) {
-            parity ^= hammingCode[j];
-        }
+// Function to generate Hamming code
+vector<int> generateHammingCode(const vector<int>& data) {
+    int m = data.size();
+    int r = 0;
+    while (pow(2, r) < m + r + 1) r++;
+
+    vector<int> code(m + r, 0);
+    int j = 0, k = 0;
+    for (int i = 0; i < code.size(); i++) {
+        if (i == pow(2, j) - 1) j++; 
+        else code[i] = data[k++];
     }
-    return parity;
+
+    for (int i = 0; i < r; i++) {
+        int parityPos = pow(2, i) - 1;
+        int count = 0;
+        for (int j = parityPos; j < code.size(); j += 2 * (parityPos + 1))
+            for (int k = j; k < j + parityPos + 1 && k < code.size(); k++)
+                count += code[k];
+        code[parityPos] = count % 2;
+    }
+    return code;
+}
+
+// Function to detect and correct error in received code
+void detectAndCorrect(vector<int>& received) {
+    int n = received.size(), r = log2(n + 1);
+    int errorPos = 0;
+    for (int i = 0; i < r; i++) {
+        int parityPos = pow(2, i) - 1, count = 0;
+        for (int j = parityPos; j < n; j += 2 * (parityPos + 1))
+            for (int k = j; k < j + parityPos + 1 && k < n; k++)
+                count += received[k];
+        if (count % 2) errorPos += pow(2, i);
+    }
+    if (errorPos) {
+        cout << "Error at position: " << errorPos << endl;
+        received[errorPos - 1] ^= 1; // Correct the error
+    } else {
+        cout << "No error detected." << endl;
+    }
+    cout << "Corrected Code: ";
+    for (int bit : received) cout << bit << " ";
+    cout << endl;
 }
 
 int main() {
-    int m, r = 0;
-    string dataBits;
-    
-    cout << "Enter the bit size for the data: ";
-    cin >> m;
-    cout << "Enter the Data bits: ";
-    cin >> dataBits;
-    
-    // Calculate the number of parity bits required
-    while (pow(2, r) < (m + r + 1)) {
-        r++;
-    }
-    
-    int totalBits = m + r;
-    vector<int> hammingCode(totalBits + 1, 0);
-    
-    // Place data bits into hamming code
-    int j = 0;
-    for (int i = 1; i <= totalBits; i++) {
-        if ((i & (i - 1)) == 0) { // Check if position is a power of 2
-            continue; // Skip parity bit positions
-        } else {
-            hammingCode[i] = dataBits[j++] - '0'; // Assign data bits
-        }
-    }
-    
-    // Calculate parity bits
-    for (int i = 0; i < r; i++) {
-        int position = pow(2, i);
-        hammingCode[position] = calculateParity(hammingCode, position, totalBits);
-    }
-    
-    // Display generated Hamming code
-    cout << "The Hamming code generated for your data is: ";
-    for (int i = 1; i <= totalBits; i++) {
-        cout << hammingCode[i];
-    }
+    vector<int> data = {1, 0, 1, 1};  // Sample data
+    vector<int> hammingCode = generateHammingCode(data);
+
+    cout << "Generated Hamming Code: ";
+    for (int bit : hammingCode) cout << bit << " ";
     cout << endl;
-    
-    // Simulate error detection
-    int errorPos;
-    cout << "For detecting error at the receiver end, enter position of a bit to alter original data: ";
-    cin >> errorPos;
-    
-    // Introduce error
-    hammingCode[errorPos] = hammingCode[errorPos] ^ 1;
-    cout << "Sent Data is : ";
-    for (int i = 1; i <= totalBits; i++) {
-        cout << hammingCode[i];
-    }
+
+    hammingCode[2] ^= 1;  // Introduce error
+    cout << "Received Code (with error): ";
+    for (int bit : hammingCode) cout << bit << " ";
     cout << endl;
-    
-    // Detect error position
-    int errorDetected = 0;
-    for (int i = 0; i < r; i++) {
-        int position = pow(2, i);
-        int parity = calculateParity(hammingCode, position, totalBits);
-        if (parity != 0) {
-            errorDetected += position;
-        }
-    }
-    
-    // Display error detection result
-    if (errorDetected == 0) {
-        cout << "No error detected." << endl;
-    } else {
-        cout << "Error is found at location " << errorDetected << endl;
-        
-        // Correct the error
-        hammingCode[errorDetected] = hammingCode[errorDetected] ^ 1;
-        cout << "After correcting error, Data is ";
-        for (int i = 1; i <= totalBits; i++) {
-            cout << hammingCode[i];
-        }
-        cout << endl;
-    }
-    
-    // Display original data sent from sender
-    cout << "The data sent from the sender: ";
-    for (int i = 1; i <= totalBits; i++) {
-        if ((i & (i - 1)) == 0) { // Skip parity bits
-            continue;
-        }
-        cout << hammingCode[i];
-    }
-    cout << endl;
-    
+
+    detectAndCorrect(hammingCode);
     return 0;
 }
